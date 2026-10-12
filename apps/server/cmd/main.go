@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/api"
 	"github.com/lucjosin/qorv.in/internal/database/mariadb"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
@@ -29,11 +30,11 @@ import (
 )
 
 type AppConfig struct {
-	Domain        string `env:"DOMAIN,required"`
-	Username      string `env:"USERNAME,required"`
-	Password      string `env:"PASSWORD,required"`
-	Email         string `env:"EMAIL,required"`
-	WorkspaceName string `env:"WORKSPACE_NAME" envDefault:"Main"`
+	Domains       []string `env:"DOMAINS,required"`
+	Username      string   `env:"USERNAME,required"`
+	Password      string   `env:"PASSWORD,required"`
+	Email         string   `env:"EMAIL,required"`
+	WorkspaceName string   `env:"WORKSPACE_NAME" envDefault:"Main"`
 }
 
 type DatabaseConfig struct {
@@ -59,7 +60,7 @@ type Config struct {
 }
 
 func main() {
-	// setup signal handling for graceful shutdown
+	// Setup signal handling for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -128,10 +129,10 @@ func main() {
 	r.Use(middleware.AllowContentType("application/json"))
 
 	r.Route("/api", func(r chi.Router) {
-		// root handlers
+		// Root handlers
 		api.NewHandler(r)
 
-		// api v1 handlers
+		// API v1 handlers
 		r.Route("/v1", func(r chi.Router) {
 			apiv1.NewCollectionHandler(r, collectionService)
 		})
@@ -155,7 +156,7 @@ func main() {
 		}
 	}()
 
-	// interrupt signal
+	// Interrupt signal
 	<-ctx.Done()
 
 	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -189,7 +190,7 @@ func serverBootstrap(
 		}
 		log.Info("system configuration not found, initiating first-time setup")
 
-		// find or create the initial user
+		// Find or create the initial user
 		userEntity, created, err := userService.FindOrCreateByUsername(ctx, user.User{
 			FirstName:     cfg.App.Username,
 			Username:      cfg.App.Username,
@@ -206,7 +207,7 @@ func serverBootstrap(
 			log.Info("system user already exists, using existing account", "user", userEntity.Username)
 		}
 
-		// set this user as the immutable owner of the system
+		// Set this user as the immutable owner of the system
 		systemEntity, err = systemService.Configure(ctx, userEntity.ID)
 		if err != nil {
 			return fmt.Errorf("configuring system: %w", err)
@@ -214,57 +215,59 @@ func serverBootstrap(
 		log.Info("system configured")
 	}
 
-	if (userEntity == user.User{}) {
+	if userEntity.IsZero() {
 		userEntity, err = userService.FindByID(ctx, systemEntity.OwnerUserID)
 		if err != nil {
 			return fmt.Errorf("loading system owner: %w", err)
 		}
 	}
 
-	// after the initialization of a qorvin database, the owner/primary user cannot be changed.
+	// After the initialization of a qorvin database, the owner/primary user cannot be changed.
 	if userEntity.Username != cfg.App.Username {
 		return errors.New("local configuration username does not match registered system owner")
 	}
 
-	domainEntity, created, err := domainService.FindOrCreateByDomain(ctx, domain.Domain{
-		Domain: cfg.App.Domain,
-	})
-	if err != nil {
-		return fmt.Errorf("configuring domain: %w", err)
-	}
-	if created {
-		log.Info("system domain configured", "domain", cfg.App.Domain)
-	} else {
-		log.Info("system domain already exists, using existing one", "domain", cfg.App.Domain)
-	}
-
-	wsEntity, created, err := wsService.FindOrCreateByDomainID(ctx, workspace.Workspace{
-		Name:        cfg.App.WorkspaceName,
-		Slug:        strings.ToLower(cfg.App.Username) + "-workspace", // TODO: apply slugfy
-		Description: "Default workspace for " + cfg.App.Username,
-		DomainID:    domainEntity.ID,
-	})
-	if err != nil {
-		return fmt.Errorf("configuring workspace: %w", err)
-	}
-	if created {
-		log.Info("system workspace configured", "workspace", cfg.App.WorkspaceName)
-	} else {
-		log.Info("system workspace already exists, using existing one", "workspace", cfg.App.WorkspaceName)
-	}
-
-	err = wsService.AddUser(ctx, workspace.WorkspaceUser{
-		WorkspaceID: wsEntity.ID,
-		UserID:      userEntity.ID,
-		Role:        workspace.AdminRole,
-	})
-	if err != nil {
-		if !errors.Is(err, errs.ErrConflict) {
-			return fmt.Errorf("adding user to workspace: %w", err)
+	for _, dom := range cfg.App.Domains {
+		domainEntity, created, err := domainService.FindOrCreateByDomain(ctx, domain.Domain{
+			Domain: dom,
+		})
+		if err != nil {
+			return fmt.Errorf("configuring domain: %w", err)
 		}
-		log.Info("system workspace already has the user assigned, nothing to do", "workspace", wsEntity.Name, "user", userEntity.Username)
-	} else {
-		log.Info("system workspace user assigned", "workspace", wsEntity.Name, "user", userEntity.Username)
+		if created {
+			log.Info("system domain configured", "domain", dom)
+		} else {
+			log.Info("system domain already exists, using existing one", "domain", dom)
+		}
+
+		wsEntity, created, err := wsService.FindOrCreateByDomainID(ctx, workspace.Workspace{
+			Name:        cfg.App.WorkspaceName,
+			Slug:        strings.ToLower(cfg.App.Username) + "-workspace-" + uuid.Must(uuid.NewV7()).String(), // TODO: apply slugfy
+			Description: "Default workspace for " + cfg.App.Username,
+			DomainID:    domainEntity.ID,
+		})
+		if err != nil {
+			return fmt.Errorf("configuring workspace: %w", err)
+		}
+		if created {
+			log.Info("system workspace configured", "workspace", cfg.App.WorkspaceName)
+		} else {
+			log.Info("system workspace already exists, using existing one", "workspace", cfg.App.WorkspaceName)
+		}
+
+		err = wsService.AddUser(ctx, workspace.WorkspaceUser{
+			WorkspaceID: wsEntity.ID,
+			UserID:      userEntity.ID,
+			Role:        workspace.AdminRole,
+		})
+		if err != nil {
+			if !errors.Is(err, errs.ErrConflict) {
+				return fmt.Errorf("adding user to workspace: %w", err)
+			}
+			log.Info("system workspace already has the user assigned, nothing to do", "workspace", wsEntity.Name, "user", userEntity.Username)
+		} else {
+			log.Info("system workspace user assigned", "workspace", wsEntity.Name, "user", userEntity.Username)
+		}
 	}
 
 	log.Info("server bootstrap complete")

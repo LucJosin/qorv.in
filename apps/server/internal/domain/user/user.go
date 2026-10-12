@@ -19,3 +19,7 @@ type User struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
+
+func (u User) IsZero() bool {
+	return u.ID == uuid.Nil
+}
