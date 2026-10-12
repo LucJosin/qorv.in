@@ -133,9 +133,12 @@ func main() {
 
 		// API v1 handlers
 		r.Route("/v1", func(r chi.Router) {
-			apiv1.NewCollectionHandler(r, collectionService)
+			err = apiv1.NewCollectionHandler(r, collectionService)
 		})
 	})
+	if err != nil {
+		log.Panic(err)
+	}
 
 	errLog := slog.NewLogLogger(log.Handler(), slog.LevelError)
 	server := http.Server{

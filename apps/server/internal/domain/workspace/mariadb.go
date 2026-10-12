@@ -14,7 +14,6 @@ import (
 const selectWorkspacesStmt = `
 	SELECT
 		w.id,
-		w.public_id,
 		w.domain_id,
 		w.slug,
 		w.name,
@@ -88,7 +87,7 @@ func (r *MariaDBRepository) Create(ctx context.Context, entity Workspace) (Works
 			name,
 			slug,
 			description
-		) VALUES (?, ?, ?, ?) RETURNING id, public_id`
+		) VALUES (?, ?, ?, ?) RETURNING id`
 
 		args := []any{
 			entity.DomainID.String(),
@@ -98,7 +97,7 @@ func (r *MariaDBRepository) Create(ctx context.Context, entity Workspace) (Works
 		}
 		row := tx.QueryRowContext(ctx, query, args...)
 
-		err := row.Scan(&entity.ID, &entity.PublicID)
+		err := row.Scan(&entity.ID)
 		if err != nil {
 			return mariadb.ParseError(err, "creating workspace")
 		}

@@ -11,7 +11,6 @@ import (
 const selectCollectionsStmt = `
 	SELECT
 		c.id,
-		c.public_id,
 		c.workspace_id,
 		c.name,
 		c.description,

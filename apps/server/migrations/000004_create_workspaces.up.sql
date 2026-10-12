@@ -1,6 +1,5 @@
 CREATE TABLE IF NOT EXISTS workspaces (
     id          UUID NOT NULL PRIMARY KEY UNIQUE DEFAULT (UUID_V7()),
-    public_id   UUID NOT NULL UNIQUE DEFAULT (UUID_V4()),
     domain_id   UUID NOT NULL,
     slug        VARCHAR(255) NOT NULL UNIQUE,
     name        VARCHAR(255) NOT NULL,
