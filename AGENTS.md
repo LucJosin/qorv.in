@@ -7,6 +7,10 @@
 - Prefer table-driven tests.
 - Do not modify generated files.
 
+# Pull request titles and descriptions
+
+Whenever a PR title or description is requested, load and follow the local [pr-writing skill](.agents/skills/pr-writing/SKILL.md). Always use its pattern: a Conventional Commit title, followed by `### Description`, `This PR aims to:`, and a bullet list of concrete changes. Return only the requested parts and keep documentation prose on single physical lines.
+
 # Code style recommendations
 
 Name test functions using `Test<Function>_<Description>`, with an underscore separating the function or behavior under test from the scenario description, such as `TestCollectionList_PublicIDs`.
