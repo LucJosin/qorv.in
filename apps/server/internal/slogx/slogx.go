@@ -110,7 +110,7 @@ func New() (*Logger, error) {
 	case FormatJSON:
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	case FormatPretty:
-		handler = tint.NewHandler(os.Stdout, &tint.Options{
+		handler = tint.NewTextHandler(os.Stdout, &tint.Options{
 			Level:       parsedLevel,
 			TimeFormat:  time.DateTime,
 			ReplaceAttr: replaceAttr,
