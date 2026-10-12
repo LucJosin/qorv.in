@@ -122,7 +122,11 @@ func (r *MariaDBRepository) CreateWorkspaceUser(ctx context.Context, entity Work
 			role,
 			created_at,
 			updated_at
-		) VALUES (?, ?, ?, ?, ?, ?)`
+		) VALUES (?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			updated_at = IF(role <> VALUES(role) OR deleted_at IS NOT NULL, VALUES(updated_at), updated_at),
+			role = VALUES(role),
+			deleted_at = NULL`
 
 		args := []any{
 			entity.WorkspaceID,
@@ -134,11 +138,9 @@ func (r *MariaDBRepository) CreateWorkspaceUser(ctx context.Context, entity Work
 		}
 		_, err := tx.ExecContext(ctx, query, args...)
 		if err != nil {
-			return mariadb.ParseError(err, "couldn't add user to workspace")
+			return mariadb.ParseError(err, "adding user to workspace")
 		}
 
-		entity.CreatedAt = now
-		entity.UpdatedAt = now
 		return nil
 	})
 }

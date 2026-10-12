@@ -261,13 +261,9 @@ func serverBootstrap(
 			Role:        workspace.AdminRole,
 		})
 		if err != nil {
-			if !errors.Is(err, errs.ErrConflict) {
-				return fmt.Errorf("adding user to workspace: %w", err)
-			}
-			log.Info("system workspace already has the user assigned, nothing to do", "workspace", wsEntity.Name, "user", userEntity.Username)
-		} else {
-			log.Info("system workspace user assigned", "workspace", wsEntity.Name, "user", userEntity.Username)
+			return fmt.Errorf("adding owner access to workspace: %w", err)
 		}
+		log.Info("system owner workspace access ensured", "workspace", wsEntity.Name, "user", userEntity.Username)
 	}
 
 	log.Info("server bootstrap complete")
