@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/LucJosin/opid"
 	"github.com/lucjosin/qorv.in/internal/api"
 	"github.com/lucjosin/qorv.in/internal/database/mariadb"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
@@ -111,10 +112,18 @@ func main() {
 	// workspace
 	workspaceRepo := workspace.NewMariaDBRepository(db)
 	workspaceService := workspace.NewService(workspaceRepo, userService)
+	workspaceCodec, err := opid.NewCodec("ws")
+	if err != nil {
+		log.Panic(fmt.Errorf("creating workspace ID codec: %w", err))
+	}
 
 	// collection
 	collectionRepo := collection.NewMariaDBRepository(db)
 	collectionService := collection.NewService(collectionRepo)
+	collectionCodec, err := opid.NewCodec("col")
+	if err != nil {
+		log.Panic(fmt.Errorf("creating collection ID codec: %w", err))
+	}
 
 	err = serverBootstrap(ctx, cfg, systemService, userService, domainService, workspaceService)
 	if err != nil {
@@ -133,13 +142,9 @@ func main() {
 
 		// API v1 handlers
 		r.Route("/v1", func(r chi.Router) {
-			err = apiv1.NewCollectionHandler(r, collectionService)
+			apiv1.NewCollectionHandler(r, collectionService, collectionCodec, workspaceCodec)
 		})
 	})
-	if err != nil {
-		log.Panic(err)
-	}
-
 	errLog := slog.NewLogLogger(log.Handler(), slog.LevelError)
 	server := http.Server{
 		Handler:      r,

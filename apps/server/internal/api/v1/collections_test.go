@@ -147,9 +147,15 @@ func listCollections(t *testing.T, entities []collection.Collection) *httptest.R
 	service := CollectionService{
 		entities: entities,
 	}
-	if err := v1.NewCollectionHandler(r, service); err != nil {
+	collectionCodec, err := opid.NewCodec("col")
+	if err != nil {
 		t.Fatal(err)
 	}
+	workspaceCodec, err := opid.NewCodec("ws")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v1.NewCollectionHandler(r, service, collectionCodec, workspaceCodec)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/collections/", nil))
 	return w

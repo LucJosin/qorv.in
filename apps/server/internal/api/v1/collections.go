@@ -33,16 +33,7 @@ type CollectionHandler struct {
 }
 
 // NewCollectionHandler registers the collection HTTP handlers.
-func NewCollectionHandler(r chi.Router, service collection.Service) error {
-	collectionCodec, err := opid.NewCodec("col")
-	if err != nil {
-		return fmt.Errorf("creating collection ID codec: %w", err)
-	}
-	workspaceCodec, err := opid.NewCodec("ws")
-	if err != nil {
-		return fmt.Errorf("creating workspace ID codec: %w", err)
-	}
-
+func NewCollectionHandler(r chi.Router, service collection.Service, collectionCodec, workspaceCodec *opid.Codec) {
 	h := &CollectionHandler{
 		service:         service,
 		collectionCodec: collectionCodec,
@@ -51,7 +42,6 @@ func NewCollectionHandler(r chi.Router, service collection.Service) error {
 	r.Route("/collections", func(r chi.Router) {
 		r.Get("/", h.list)
 	})
-	return nil
 }
 
 func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
