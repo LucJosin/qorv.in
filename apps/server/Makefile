@@ -53,29 +53,29 @@ migrate/new: ## Create a new server migration. Usage: make migrate/new NAME=crea
 
 .PHONY: migrate/up
 migrate/up: ## Run server migrations
-	@$(ENV) && $(MIGRATE_CMD) up
+	@$(ENV) $(MIGRATE_CMD) up
 
 .PHONY: migrate/down
 migrate/down: ## Rollback one server migration
-	@$(ENV) && $(MIGRATE_CMD) down 1
+	@$(ENV) $(MIGRATE_CMD) down 1
 
 .PHONY: migrate/drop
 migrate/drop: ## Drop server database
-	@$(ENV) && $(MIGRATE_CMD) drop
+	@$(ENV) $(MIGRATE_CMD) drop
 
 .PHONY: migrate/version
 migrate/version: ## Check server migration version
-	@$(ENV) && $(MIGRATE_CMD) version
+	@$(ENV) $(MIGRATE_CMD) version
 
 ## Go tooling
 
 .PHONY: deps
 deps: ## Download Go dependencies
-	@cd go mod tidy
+	@go mod tidy
 
 .PHONY: vuln
 vuln: ## Check for vulnerabilities in Go dependencies
-	@cd go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 ## Help
 
