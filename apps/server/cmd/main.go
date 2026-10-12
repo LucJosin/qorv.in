@@ -191,7 +191,8 @@ func serverBootstrap(
 		log.Info("system configuration not found, initiating first-time setup")
 
 		// Find or create the initial user
-		userEntity, created, err := userService.FindOrCreateByUsername(ctx, user.User{
+		var created bool
+		userEntity, created, err = userService.FindOrCreateByUsername(ctx, user.User{
 			FirstName:     cfg.App.Username,
 			Username:      cfg.App.Username,
 			Password:      cfg.App.Password, // TODO: hash the password
@@ -215,7 +216,7 @@ func serverBootstrap(
 		log.Info("system configured")
 	}
 
-	if userEntity.IsZero() {
+	if userEntity.ID != systemEntity.OwnerUserID {
 		userEntity, err = userService.FindByID(ctx, systemEntity.OwnerUserID)
 		if err != nil {
 			return fmt.Errorf("loading system owner: %w", err)
