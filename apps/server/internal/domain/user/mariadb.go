@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/database/mariadb"
 	"github.com/lucjosin/qorv.in/internal/database/tx"
 )
@@ -40,7 +40,7 @@ func NewMariaDBRepository(db *mariadb.Database) Repository {
 func (r *MariaDBRepository) FindByID(ctx context.Context, id uuid.UUID) (User, error) {
 	query := selectUsersStmt + ` WHERE u.id = ? AND u.deleted_at IS NULL`
 
-	row := r.db.QueryRowContext(ctx, query, id)
+	row := r.db.QueryRowContext(ctx, query, id.String())
 	entity, err := scanRow(row)
 	if err != nil {
 		return User{}, fmt.Errorf("scanning user: %w", err)
@@ -71,7 +71,7 @@ func (r *MariaDBRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool,
 	)`, selectUsersStmt)
 
 	var exists bool
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("fetching user: %w", err)
 	}

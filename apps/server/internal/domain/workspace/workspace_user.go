@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"time"
-
-	"github.com/gofrs/uuid/v5"
+	"uuid"
 )
 
 // WorkspaceRole represents a user's permission level within a workspace.

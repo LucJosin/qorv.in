@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/database/mariadb"
 	"github.com/lucjosin/qorv.in/internal/database/tx"
 )
@@ -39,7 +39,7 @@ func NewMariaDBRepository(db *mariadb.Database) Repository {
 func (r *MariaDBRepository) FindByID(ctx context.Context, id uuid.UUID) (Workspace, error) {
 	query := selectWorkspacesStmt + ` WHERE w.id = ? AND w.deleted_at IS NULL`
 
-	row := r.db.QueryRowContext(ctx, query, id)
+	row := r.db.QueryRowContext(ctx, query, id.String())
 	entity, err := scanRow(row)
 	if err != nil {
 		return Workspace{}, fmt.Errorf("scanning workspace: %w", err)
@@ -51,7 +51,7 @@ func (r *MariaDBRepository) FindByID(ctx context.Context, id uuid.UUID) (Workspa
 func (r *MariaDBRepository) FindByDomainID(ctx context.Context, domainID uuid.UUID) (Workspace, error) {
 	query := selectWorkspacesStmt + ` WHERE w.domain_id = ? AND w.deleted_at IS NULL`
 
-	row := r.db.QueryRowContext(ctx, query, domainID)
+	row := r.db.QueryRowContext(ctx, query, domainID.String())
 	entity, err := scanRow(row)
 	if err != nil {
 		return Workspace{}, fmt.Errorf("scanning workspace: %w", err)
@@ -70,7 +70,7 @@ func (r *MariaDBRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool,
 	)`, selectWorkspacesStmt)
 
 	var exists bool
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, query, id.String()).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("fetching user: %w", err)
 	}
@@ -91,7 +91,7 @@ func (r *MariaDBRepository) Create(ctx context.Context, entity Workspace) (Works
 		) VALUES (?, ?, ?, ?) RETURNING id, public_id`
 
 		args := []any{
-			entity.DomainID,
+			entity.DomainID.String(),
 			entity.Name,
 			entity.Slug,
 			entity.Description,
@@ -113,6 +113,11 @@ func (r *MariaDBRepository) Create(ctx context.Context, entity Workspace) (Works
 func (r *MariaDBRepository) CreateWorkspaceUser(ctx context.Context, entity WorkspaceUser) error {
 	return tx.BeginFunc(ctx, r.db, func(tx *sql.Tx) error {
 		now := time.Now()
+		var invitedBy *string
+		if entity.InvitedBy != nil {
+			id := entity.InvitedBy.String()
+			invitedBy = &id
+		}
 
 		query := `
 		INSERT INTO workspace_users (
@@ -129,9 +134,9 @@ func (r *MariaDBRepository) CreateWorkspaceUser(ctx context.Context, entity Work
 			deleted_at = NULL`
 
 		args := []any{
-			entity.WorkspaceID,
-			entity.UserID,
-			entity.InvitedBy,
+			entity.WorkspaceID.String(),
+			entity.UserID.String(),
+			invitedBy,
 			entity.Role,
 			now,
 			now,

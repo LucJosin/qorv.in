@@ -13,6 +13,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
+	// TODO: check whether the MySQL driver supports stdlib uuid parameters,
+	// then remove repository String() conversions, preserving SQL NULL handling.
 	driver "github.com/go-sql-driver/mysql"
 )
 

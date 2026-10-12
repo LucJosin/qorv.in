@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 	"time"
+	"uuid"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
 )
 
@@ -63,7 +63,7 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionResponse, error) {
-	if e.PublicID == uuid.Nil {
+	if e.PublicID == uuid.Nil() {
 		return CollectionResponse{}, errors.New("workspace has empty public ID")
 	}
 

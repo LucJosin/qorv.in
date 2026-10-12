@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/errs"
 )
 

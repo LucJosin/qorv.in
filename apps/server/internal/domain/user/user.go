@@ -2,8 +2,7 @@ package user
 
 import (
 	"time"
-
-	"github.com/gofrs/uuid/v5"
+	"uuid"
 )
 
 type User struct {
@@ -21,5 +20,5 @@ type User struct {
 }
 
 func (u User) IsZero() bool {
-	return u.ID == uuid.Nil
+	return u.ID == uuid.Nil()
 }

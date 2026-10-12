@@ -2,8 +2,7 @@ package system
 
 import (
 	"time"
-
-	"github.com/gofrs/uuid/v5"
+	"uuid"
 )
 
 type System struct {

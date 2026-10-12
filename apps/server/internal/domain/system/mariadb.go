@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/database/mariadb"
 	"github.com/lucjosin/qorv.in/internal/database/tx"
 )
@@ -52,7 +52,7 @@ func (r *MariaDBRepository) Create(ctx context.Context, ownerUserID uuid.UUID) (
 		) VALUES (?, ?, ?)`
 
 		args := []any{
-			ownerUserID,
+			ownerUserID.String(),
 			now,
 			now,
 		}
