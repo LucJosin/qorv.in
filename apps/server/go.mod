@@ -8,6 +8,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/golang-migrate/migrate/v4 v4.20.1
+	github.com/google/go-cmp v0.7.0
 	github.com/lmittmann/tint v1.2.1
 )
 

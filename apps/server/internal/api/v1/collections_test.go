@@ -10,38 +10,21 @@ import (
 
 	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
-	v1 "github.com/lucjosin/qorv.in/internal/api/v1"
+	"github.com/google/go-cmp/cmp"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
+
+	v1 "github.com/lucjosin/qorv.in/internal/api/v1"
 )
 
-type collectionService struct {
-	entities []collection.Collection
-}
-
-func (s collectionService) List(context.Context) ([]collection.Collection, error) {
-	return s.entities, nil
-}
-
-func listCollections(t *testing.T, entities []collection.Collection) *httptest.ResponseRecorder {
-	t.Helper()
-	r := chi.NewRouter()
-	if err := v1.NewCollectionHandler(r, collectionService{entities: entities}); err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/collections/", nil))
-	return w
-}
-
-func TestCollectionListPublicIDs(t *testing.T) {
+func TestCollectionList_PublicIDs(t *testing.T) {
 	entity := collection.Collection{
 		ID:          uuid.NewV7(),
 		WorkspaceID: uuid.NewV7(),
 		Name:        "Bookmarks",
 	}
 	w := listCollections(t, []collection.Collection{entity})
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	if diff := cmp.Diff(http.StatusOK, w.Code); diff != "" {
+		t.Fatalf("status mismatch (-want +got):\n%s", diff)
 	}
 
 	var response struct {
@@ -50,22 +33,31 @@ func TestCollectionListPublicIDs(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Data) != 1 {
-		t.Fatalf("collection count = %d, want 1", len(response.Data))
+	if diff := cmp.Diff(1, len(response.Data)); diff != "" {
+		t.Fatalf("collection count mismatch (-want +got):\n%s", diff)
 	}
 	data := response.Data[0]
 	if _, ok := data["public_id"]; ok {
 		t.Fatal("response contains obsolete public_id field")
 	}
 
-	for _, test := range []struct {
+	tests := []struct {
 		field  string
 		prefix string
 		id     uuid.UUID
 	}{
-		{field: "id", prefix: "col", id: entity.ID},
-		{field: "workspace_id", prefix: "ws", id: entity.WorkspaceID},
-	} {
+		{
+			field:  "id",
+			prefix: "col",
+			id:     entity.ID,
+		},
+		{
+			field:  "workspace_id",
+			prefix: "ws",
+			id:     entity.WorkspaceID,
+		},
+	}
+	for _, test := range tests {
 		var publicID opid.ID
 		if err := json.Unmarshal(data[test.field], &publicID); err != nil {
 			t.Fatal(err)
@@ -78,43 +70,87 @@ func TestCollectionListPublicIDs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("decoding %s: %v", test.field, err)
 		}
-		if id != test.id {
-			t.Fatalf("%s decoded to %s, want %s", test.field, id, test.id)
+		if diff := cmp.Diff(test.id, id); diff != "" {
+			t.Fatalf("%s mismatch (-want +got):\n%s", test.field, diff)
 		}
 	}
 }
 
-func TestCollectionListRejectsInvalidIDs(t *testing.T) {
+func TestCollectionList_RejectsInvalidIDs(t *testing.T) {
 	validID := uuid.NewV7()
-	for _, test := range []struct {
+	tests := []struct {
 		name        string
 		id          uuid.UUID
 		workspaceID uuid.UUID
 	}{
-		{name: "empty collection", workspaceID: validID},
-		{name: "empty workspace", id: validID},
-		{name: "v4 collection", id: uuid.NewV4(), workspaceID: validID},
-		{name: "v4 workspace", id: validID, workspaceID: uuid.NewV4()},
-	} {
+		{
+			name:        "empty collection",
+			workspaceID: validID,
+		},
+		{
+			name: "empty workspace",
+			id:   validID,
+		},
+		{
+			name:        "v4 collection",
+			id:          uuid.NewV4(),
+			workspaceID: validID,
+		},
+		{
+			name:        "v4 workspace",
+			id:          validID,
+			workspaceID: uuid.NewV4(),
+		},
+	}
+	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			w := listCollections(t, []collection.Collection{{ID: test.id, WorkspaceID: test.workspaceID}})
-			if w.Code != http.StatusInternalServerError {
-				t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+			entities := []collection.Collection{
+				{
+					ID:          test.id,
+					WorkspaceID: test.workspaceID,
+				},
+			}
+			w := listCollections(t, entities)
+			if diff := cmp.Diff(http.StatusInternalServerError, w.Code); diff != "" {
+				t.Fatalf("status mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestCollectionListEmpty(t *testing.T) {
+func TestCollectionList_Empty(t *testing.T) {
 	w := listCollections(t, nil)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	if diff := cmp.Diff(http.StatusOK, w.Code); diff != "" {
+		t.Fatalf("status mismatch (-want +got):\n%s", diff)
 	}
 	var response v1.APIResponse[[]v1.CollectionResponse]
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.Data == nil || len(response.Data) != 0 {
-		t.Fatalf("empty collection list = %#v, want an empty array", response.Data)
+	want := []v1.CollectionResponse{}
+	if diff := cmp.Diff(want, response.Data); diff != "" {
+		t.Fatalf("empty collection list mismatch (-want +got):\n%s", diff)
 	}
+}
+
+type CollectionService struct {
+	entities []collection.Collection
+}
+
+func (s CollectionService) List(context.Context) ([]collection.Collection, error) {
+	return s.entities, nil
+}
+
+func listCollections(t *testing.T, entities []collection.Collection) *httptest.ResponseRecorder {
+	t.Helper()
+	r := chi.NewRouter()
+	service := CollectionService{
+		entities: entities,
+	}
+	if err := v1.NewCollectionHandler(r, service); err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/collections/", nil))
+	return w
 }
