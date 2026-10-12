@@ -15,6 +15,8 @@ const selectWorkspacesStmt = `
 	SELECT
 		w.id,
 		w.public_id,
+		w.domain_id,
+		w.slug,
 		w.name,
 		w.description,
 		w.color,

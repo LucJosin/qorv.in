@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS workspaces (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP,
 
+    CONSTRAINT uq_workspaces_domain_id UNIQUE (domain_id),
+
     CONSTRAINT fk_domains_workspace_id
     FOREIGN KEY (domain_id)
     REFERENCES domains (id)

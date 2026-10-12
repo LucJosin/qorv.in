@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/lucjosin/qorv.in/internal/api"
 	"github.com/lucjosin/qorv.in/internal/database/mariadb"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
@@ -243,7 +242,7 @@ func serverBootstrap(
 
 		wsEntity, created, err := wsService.FindOrCreateByDomainID(ctx, workspace.Workspace{
 			Name:        cfg.App.WorkspaceName,
-			Slug:        strings.ToLower(cfg.App.Username) + "-workspace-" + uuid.Must(uuid.NewV7()).String(), // TODO: apply slugfy
+			Slug:        strings.ToLower(cfg.App.Username) + "-workspace-" + domainEntity.ID.String(), // TODO: apply slugfy
 			Description: "Default workspace for " + cfg.App.Username,
 			DomainID:    domainEntity.ID,
 		})

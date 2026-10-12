@@ -43,14 +43,14 @@ func (s *service) FindOrCreateByDomainID(ctx context.Context, entity Workspace) 
 		return Workspace{}, false, fmt.Errorf("checking workspace existence: %w", err)
 	}
 
-	createdEntity, err := s.repo.Create(ctx, entity)
+	createdEntity, err := s.Create(ctx, entity)
 	if err == nil {
 		return createdEntity, true, nil
 	}
 
 	if errors.Is(err, errs.ErrConflict) {
-		// query the DB one more time to retrieve the recent data
-		recentEntity, err := s.repo.FindByDomainID(ctx, createdEntity.DomainID)
+		// Query the DB one more time to retrieve the recent data
+		recentEntity, err := s.repo.FindByDomainID(ctx, entity.DomainID)
 		if err != nil {
 			return Workspace{}, false, fmt.Errorf("retrieving workspace after conflict: %w", err)
 		}

@@ -1,9 +1,12 @@
 package workspace
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofrs/uuid/v5"
+	"github.com/lucjosin/qorv.in/internal/errs"
 )
 
 type Workspace struct {
@@ -25,6 +28,9 @@ func (w *Workspace) ValidateAndPrepare() error {
 }
 
 func (w *Workspace) Validate() error {
+	if strings.TrimSpace(w.Slug) == "" {
+		return fmt.Errorf("%w: workspace slug is required", errs.ErrInvalid)
+	}
 	return nil
 }
 

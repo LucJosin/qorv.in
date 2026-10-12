@@ -22,6 +22,8 @@ func scanRow(row interface{ Scan(...any) error }) (Workspace, error) {
 	err := row.Scan(
 		&e.ID,
 		&e.PublicID,
+		&e.DomainID,
+		&e.Slug,
 		&e.Name,
 		&e.Description,
 		&e.Color,
