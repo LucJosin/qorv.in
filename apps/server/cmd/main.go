@@ -159,7 +159,7 @@ func main() {
 	// Interrupt signal
 	<-ctx.Done()
 
-	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
 
 	err = server.Shutdown(shutdownCtx)
