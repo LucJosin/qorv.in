@@ -48,7 +48,7 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := make([]CollectionResponse, len(entities))
+	response := make([]CollectionResponse, 0, len(entities))
 	for _, entity := range entities {
 		entity, err := h.toResponse(entity)
 		if err != nil {
