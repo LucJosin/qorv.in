@@ -65,7 +65,8 @@ func Open(ctx context.Context, config Config) (*Database, error) {
 	db.SetMaxOpenConns(config.MaxOpenConns)
 	db.SetMaxIdleConns(config.MaxIdleConns)
 
-	if err := db.PingContext(ctx); err != nil {
+	err = db.PingContext(ctx)
+	if err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
@@ -106,7 +107,8 @@ func Migrate(ctx context.Context, config Config) error {
 	}
 
 	log.Debug("running database migrations")
-	if err := mg.Up(); err != nil {
+	err = mg.Up()
+	if err != nil {
 		if !errors.Is(err, migrate.ErrNoChange) {
 			return fmt.Errorf("failed to run migrations: %v", err)
 		}
