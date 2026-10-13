@@ -1,19 +1,18 @@
 package v1
 
 import (
-	"errors"
+	"fmt"
 	"net/http"
 	"time"
-	"uuid"
 
+	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
 )
 
 type CollectionResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	PublicID    uuid.UUID  `json:"public_id"`
-	WorkspaceID uuid.UUID  `json:"workspace_id"`
+	ID          opid.ID    `json:"id"`
+	WorkspaceID opid.ID    `json:"workspace_id"`
 	Name        string     `json:"name"`
 	Description *string    `json:"description,omitzero"`
 	Category    *string    `json:"category,omitzero"`
@@ -28,12 +27,18 @@ type CollectionResponse struct {
 }
 
 type CollectionHandler struct {
-	service collection.Service
+	service         collection.Service
+	collectionCodec *opid.Codec
+	workspaceCodec  *opid.Codec
 }
 
 // NewCollectionHandler registers the collection HTTP handlers.
-func NewCollectionHandler(r chi.Router, service collection.Service) {
-	h := &CollectionHandler{service: service}
+func NewCollectionHandler(r chi.Router, service collection.Service, collectionCodec, workspaceCodec *opid.Codec) {
+	h := &CollectionHandler{
+		service:         service,
+		collectionCodec: collectionCodec,
+		workspaceCodec:  workspaceCodec,
+	}
 	r.Route("/collections", func(r chi.Router) {
 		r.Get("/", h.list)
 	})
@@ -63,13 +68,18 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionResponse, error) {
-	if e.PublicID == uuid.Nil() {
-		return CollectionResponse{}, errors.New("workspace has empty public ID")
+	id, err := h.collectionCodec.Encode(e.ID)
+	if err != nil {
+		return CollectionResponse{}, fmt.Errorf("encoding collection ID: %w", err)
+	}
+	workspaceID, err := h.workspaceCodec.Encode(e.WorkspaceID)
+	if err != nil {
+		return CollectionResponse{}, fmt.Errorf("encoding workspace ID: %w", err)
 	}
 
 	res := CollectionResponse{
-		ID:          e.PublicID,
-		WorkspaceID: e.WorkspaceID,
+		ID:          id,
+		WorkspaceID: workspaceID,
 		Name:        e.Name,
 		Category:    e.Category,
 		IsPublic:    e.IsPublic,

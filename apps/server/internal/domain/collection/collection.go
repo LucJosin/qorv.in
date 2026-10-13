@@ -7,7 +7,6 @@ import (
 
 type Collection struct {
 	ID          uuid.UUID
-	PublicID    uuid.UUID
 	WorkspaceID uuid.UUID
 	Name        string
 	Description *string

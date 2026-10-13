@@ -1,6 +1,5 @@
 CREATE TABLE IF NOT EXISTS collections (
     id           UUID NOT NULL PRIMARY KEY UNIQUE DEFAULT (UUID_V7()),
-    public_id    UUID NOT NULL UNIQUE DEFAULT (UUID_V4()),
     workspace_id UUID NOT NULL,
     name         VARCHAR(255) NOT NULL,
     description  TEXT,

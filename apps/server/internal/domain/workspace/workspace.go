@@ -11,7 +11,6 @@ import (
 
 type Workspace struct {
 	ID          uuid.UUID
-	PublicID    uuid.UUID
 	DomainID    uuid.UUID
 	Slug        string
 	Name        string
