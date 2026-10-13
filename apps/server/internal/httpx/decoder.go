@@ -21,7 +21,8 @@ func DecodeJSON(r *http.Request, v any) error {
 
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
+	err := dec.Decode(v)
+	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return errors.New("empty body")
 		}

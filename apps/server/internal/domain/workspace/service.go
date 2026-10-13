@@ -76,7 +76,8 @@ func (s *service) Create(ctx context.Context, entity Workspace) (Workspace, erro
 
 // AddUser creates or restores an active membership with the requested role.
 func (s *service) AddUser(ctx context.Context, entity WorkspaceUser) error {
-	if err := entity.ValidateAndPrepare(); err != nil {
+	err := entity.ValidateAndPrepare()
+	if err != nil {
 		return err
 	}
 
