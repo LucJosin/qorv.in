@@ -13,9 +13,17 @@ Whenever a PR title or description is requested, load and follow the local [pr-w
 
 # Code style recommendations
 
+Split packages into focused files by responsibility, such as request validation, query parsing, cursor encoding, and page results. Avoid accumulating an entire feature in one large file.
+
+Always separate calls that return errors from their checks: assign the result to a variable, then check the error in a separate `if` statement. Do not use `if err := call(); err != nil` or equivalent inline error assignments, including in tests.
+
+Define reusable struct types at package scope instead of declaring anonymous response structs inside functions. Assign struct literals to variables before passing them to functions. For table-driven tests, keep the test-case declaration in the named `tests` variable as described below.
+
 Name test functions using `Test<Function>_<Description>`, with an underscore separating the function or behavior under test from the scenario description, such as `TestCollectionList_PublicIDs`.
 
 Use `github.com/google/go-cmp/cmp` for expected-versus-actual value comparisons in tests. Prefer `cmp.Diff(want, got)` and report differences with `(-want +got)`. Keep ordinary error checks and presence checks where a value comparison is not appropriate. Preserve the distinction between nil and empty slices unless the behavior under test treats them as equivalent.
+
+Always name actual and expected test values `got` and `want`. Introduce variables when necessary instead of passing literals, field expressions, or test-case fields directly to comparison assertions. Keep separate behaviors in separate test functions within the existing test file, and add comments only when the setup or intent is not clear from the code.
 
 Use an external test package named `<package>_test` for test files whenever possible, such as `package v1_test`. Use the package under test only when access to unexported implementation details is necessary.
 
