@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -8,6 +9,8 @@ import (
 	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
+	"github.com/lucjosin/qorv.in/internal/errs"
+	"github.com/lucjosin/qorv.in/internal/pagination"
 )
 
 type CollectionResponse struct {
@@ -47,24 +50,45 @@ func NewCollectionHandler(r chi.Router, service collection.Service, collectionCo
 func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	entities, err := h.service.List(ctx)
+	var params collection.Params
+	query, err := pagination.ParseQuery(r.URL.RawQuery, params, h.collectionCodec)
 	if err != nil {
-		internalError(ctx, w, err)
+		if validation, ok := errors.AsType[*errs.ValidationError](err); ok {
+			writeError(w, r, http.StatusBadRequest, "Invalid pagination parameters.", []FieldError{
+				{
+					Field:   validation.Field,
+					Message: validation.Message,
+					Key:     "invalid",
+				},
+			})
+		} else {
+			internalError(w, r, err)
+		}
+		return
+	}
+	params.Query = query
+	page, err := h.service.List(ctx, params)
+	if err != nil {
+		internalError(w, r, err)
 		return
 	}
 
-	response := make([]CollectionResponse, 0, len(entities))
-	for _, entity := range entities {
+	response := make([]CollectionResponse, 0, len(page.Items))
+	for _, entity := range page.Items {
 		entity, err := h.toResponse(entity)
 		if err != nil {
-			internalError(ctx, w, err)
+			internalError(w, r, err)
 			return
 		}
 		response = append(response, entity)
 	}
 
-	// TODO: add paginated response
-	writeResponse(ctx, w, http.StatusOK, response)
+	metadata, err := pagination.NewMetadata(page, query, params, h.collectionCodec, collectionCursor)
+	if err != nil {
+		internalError(w, r, err)
+		return
+	}
+	writeResponse(ctx, w, http.StatusOK, response, &metadata)
 }
 
 func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionResponse, error) {
@@ -93,4 +117,11 @@ func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionRespo
 		UpdatedAt:   e.UpdatedAt,
 	}
 	return res, nil
+}
+
+func collectionCursor(entity collection.Collection) pagination.Cursor {
+	return pagination.Cursor{
+		CreatedAt: entity.CreatedAt,
+		ID:        entity.ID,
+	}
 }

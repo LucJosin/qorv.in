@@ -1,9 +1,13 @@
 package collection
 
-import "context"
+import (
+	"context"
+
+	"github.com/lucjosin/qorv.in/internal/pagination"
+)
 
 type Service interface {
-	List(ctx context.Context) ([]Collection, error)
+	List(ctx context.Context, params Params) (pagination.Page[Collection], error)
 }
 
 type service struct {
@@ -16,6 +20,14 @@ func NewService(repo Repository) Service {
 	}
 }
 
-func (s *service) List(ctx context.Context) ([]Collection, error) {
-	return s.repo.List(ctx)
+func (s *service) List(ctx context.Context, params Params) (pagination.Page[Collection], error) {
+	err := params.Validate()
+	if err != nil {
+		return pagination.Page[Collection]{}, err
+	}
+	items, err := s.repo.List(ctx, params)
+	if err != nil {
+		return pagination.Page[Collection]{}, err
+	}
+	return pagination.NewPage(items, params.Limit), nil
 }

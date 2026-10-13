@@ -9,7 +9,7 @@ import (
 )
 
 type Repository interface {
-	List(ctx context.Context) ([]Collection, error)
+	List(ctx context.Context, params Params) ([]Collection, error)
 }
 
 func scanRow(row interface{ Scan(...any) error }) (Collection, error) {
