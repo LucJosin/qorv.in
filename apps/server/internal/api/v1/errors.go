@@ -4,6 +4,14 @@ import (
 	"net/http"
 )
 
+// Field validation codes form the public API contract.
+const (
+	FieldRequired = "FIELD_REQUIRED"
+	FieldInvalid  = "FIELD_INVALID"
+	FieldMin      = "FIELD_MIN"
+	FieldMax      = "FIELD_MAX"
+)
+
 // FieldError represents a validation error for a specific field
 type FieldError struct {
 	Field   string `json:"field"`
@@ -16,7 +24,7 @@ type ErrorResponse struct {
 	StatusCode int          `json:"status_code"`
 	Status     string       `json:"status"`
 	Message    string       `json:"message,omitempty"`
-	Errors     []FieldError `json:"errors,omitempty"`
+	Details    []FieldError `json:"details,omitempty"`
 
 	Path      string `json:"path,omitempty"`
 	Timestamp string `json:"timestamp"`
