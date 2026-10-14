@@ -61,11 +61,12 @@ func (v *Validator) Validate(value any) error {
 		if param != "" {
 			params = []string{param}
 		}
-		fields = append(fields, FieldError{
+		field := FieldError{
 			Field:  failure.Field(),
 			Tag:    failure.Tag(),
 			Params: params,
-		})
+		}
+		fields = append(fields, field)
 	}
 
 	return NewValidationError(fields...)

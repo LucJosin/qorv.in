@@ -67,11 +67,13 @@ func writeValidationError(w http.ResponseWriter, r *http.Request, err error, mes
 				detail = "has an invalid value"
 			}
 		}
-		fields = append(fields, FieldError{
+
+		detailError := FieldError{
 			Field:   field.Field,
 			Key:     key,
 			Message: fmt.Sprintf("Field %s %s", field.Field, detail),
-		})
+		}
+		fields = append(fields, detailError)
 	}
 
 	response := APIErrorResponse{
@@ -91,7 +93,8 @@ func writeValidationError(w http.ResponseWriter, r *http.Request, err error, mes
 //
 // It wraps the body in an APIResponse struct and includes pagination metadata if provided.
 func writeResponse[T any](ctx context.Context, w http.ResponseWriter, status int, body T) {
-	httpx.WriteJSON(ctx, w, status, APIResponse[T]{
+	response := APIResponse[T]{
 		Data: body,
-	})
+	}
+	httpx.WriteJSON(ctx, w, status, response)
 }

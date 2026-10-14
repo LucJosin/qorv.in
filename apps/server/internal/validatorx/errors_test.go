@@ -11,7 +11,9 @@ import (
 )
 
 func TestNewValidationError_Wrapped(t *testing.T) {
-	err := fmt.Errorf("validating request: %w", validatorx.NewValidationError(validatorx.Field("limit", "out of range")))
+	field := validatorx.Field("limit", "out of range")
+	validationError := validatorx.NewValidationError(field)
+	err := fmt.Errorf("validating request: %w", validationError)
 
 	isInvalid := errors.Is(err, errs.ErrInvalid)
 	if !isInvalid {

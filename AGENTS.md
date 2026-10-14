@@ -15,7 +15,7 @@ Whenever a PR title or description is requested, load and follow the local [pr-w
 
 Split packages into focused files by responsibility, such as request validation, query parsing, cursor encoding, and page results. Avoid accumulating an entire feature in one large file.
 
-Define reusable struct types at package scope instead of declaring anonymous response structs inside functions. Assign struct literals to variables before passing them to functions. For table-driven tests, keep the test-case declaration in the named `tests` variable as described below.
+Prefer local scope for types and variables. Start with declarations inside the function that uses them, and move them to package scope only when they need to be shared across functions or form part of the package API. Types used by a single test should remain local. Assign struct literals to variables before passing them to functions. For table-driven tests, keep the test-case declaration in the named `tests` variable as described below.
 
 Avoid using `reflect`. Always ask for approval before introducing reflection, including new uses in code that already imports `reflect`.
 

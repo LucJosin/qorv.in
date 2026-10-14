@@ -22,7 +22,8 @@ func BeginFunc(
 
 	defer func() {
 		rollbackErr := tx.Rollback()
-		if rollbackErr != nil && !errors.Is(err, sql.ErrConnDone) {
+		isConnDone := errors.Is(err, sql.ErrConnDone)
+		if rollbackErr != nil && !isConnDone {
 			err = rollbackErr
 		}
 	}()

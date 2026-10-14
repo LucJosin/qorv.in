@@ -26,16 +26,18 @@ func TestCollectionList_PublicIDs(t *testing.T) {
 		Name:        "Bookmarks",
 	}
 
-	w := listCollections(t, []collection.Collection{entity})
+	entities := []collection.Collection{entity}
+	w := listCollections(t, entities)
 	want := http.StatusOK
 	got := w.Code
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("status mismatch (-want +got):\n%s", diff)
 	}
 
-	var response struct {
+	type collectionListRawResponse struct {
 		Data []map[string]json.RawMessage `json:"data"`
 	}
+	var response collectionListRawResponse
 
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	if err != nil {
@@ -166,12 +168,29 @@ func TestCollectionList_Empty(t *testing.T) {
 
 func TestCollectionList_ValidationErrors(t *testing.T) {
 	validator := validatorx.New()
-	request := struct {
+	type collectionValidationRequest struct {
 		Name  string `json:"name" validate:"required"`
 		Count int    `json:"count" validate:"min=1"`
 		Email string `json:"email" validate:"email"`
-	}{}
+	}
+	request := collectionValidationRequest{}
 	validationError := validator.Validate(request)
+
+	fieldValidation := &validatorx.ValidationError{
+		Fields: []validatorx.FieldError{
+			{
+				Field:   "workspace_id",
+				Tag:     "invalid",
+				Message: "invalid workspace",
+			},
+			{
+				Field:  "limit",
+				Tag:    "max",
+				Params: []string{"100"},
+			},
+		},
+	}
+	wrappedValidation := fmt.Errorf("listing collections: %w", fieldValidation)
 
 	tests := []struct {
 		name   string
@@ -202,21 +221,8 @@ func TestCollectionList_ValidationErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "wrapped multiple fields",
-			err: fmt.Errorf("listing collections: %w", &validatorx.ValidationError{
-				Fields: []validatorx.FieldError{
-					{
-						Field:   "workspace_id",
-						Tag:     "invalid",
-						Message: "invalid workspace",
-					},
-					{
-						Field:  "limit",
-						Tag:    "max",
-						Params: []string{"100"},
-					},
-				},
-			}),
+			name:   "wrapped multiple fields",
+			err:    wrappedValidation,
 			status: http.StatusBadRequest,
 			want: []v1.FieldError{
 				{

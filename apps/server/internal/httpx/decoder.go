@@ -34,7 +34,8 @@ func DecodeJSON(r *http.Request, v any) error {
 			return fmt.Errorf("invalid JSON type for field %s", e.Field)
 		}
 
-		if after, ok := strings.CutPrefix(err.Error(), unknownFieldPrefix); ok {
+		after, ok := strings.CutPrefix(err.Error(), unknownFieldPrefix)
+		if ok {
 			field := strings.Trim(after, `"`)
 			return fmt.Errorf("unknown field %s", field)
 		}
