@@ -1,10 +1,11 @@
 package workspace
 
 import (
-	"fmt"
 	"slices"
 	"time"
 	"uuid"
+
+	"github.com/lucjosin/qorv.in/internal/validatorx"
 )
 
 // WorkspaceRole represents a user's permission level within a workspace.
@@ -47,10 +48,15 @@ func (wu *WorkspaceUser) ValidateAndPrepare() error {
 }
 
 func (wu *WorkspaceUser) Validate() error {
-	if !slices.Contains(ValidWorkspaceRoles, wu.Role) {
-		return fmt.Errorf("invalid workspace role: %s", wu.Role)
+	var fields []validatorx.FieldError
+
+	validRole := slices.Contains(ValidWorkspaceRoles, wu.Role)
+	if !validRole {
+		field := validatorx.Field("role", "must be a valid workspace role")
+		fields = append(fields, field)
 	}
-	return nil
+
+	return validatorx.NewValidationError(fields...)
 }
 
 func (wu *WorkspaceUser) Prepare() {
