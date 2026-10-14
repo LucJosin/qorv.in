@@ -49,7 +49,8 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 
 	entities, err := h.service.List(ctx)
 	if err != nil {
-		internalError(ctx, w, err)
+		// TODO: remove it
+		writeValidationError(w, r, err, "Invalid collection parameters.")
 		return
 	}
 
