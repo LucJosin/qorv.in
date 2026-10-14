@@ -13,6 +13,10 @@ Whenever a PR title or description is requested, load and follow the local [pr-w
 
 # Code style recommendations
 
+Split packages into focused files by responsibility, such as request validation, query parsing, cursor encoding, and page results. Avoid accumulating an entire feature in one large file.
+
+Define reusable struct types at package scope instead of declaring anonymous response structs inside functions. Assign struct literals to variables before passing them to functions. For table-driven tests, keep the test-case declaration in the named `tests` variable as described below.
+
 Avoid using `reflect`. Always ask for approval before introducing reflection, including new uses in code that already imports `reflect`.
 
 Separate function calls and assignments from validation conditions: assign the result to a named variable before checking it, rather than using an initializer in the `if` statement or calling validation and error-classification functions directly in the condition. Keep conditions readable and avoid combining result extraction with multiple checks. Inline `cmp.Diff(want, got)` checks in tests remain preferred.
@@ -24,6 +28,8 @@ Use `github.com/google/go-cmp/cmp` for expected-versus-actual value comparisons 
 Assign expected and actual values to named variables before comparing them. Reuse `want` and `got` when their types match. Use descriptive names such as `wantStatus`, `gotStatus`, `wantFields`, and `gotFields` when comparisons need different types. Do not introduce standalone blocks solely to scope comparison variables.
 
 Place test helper types and functions after all test functions. Separate setup, execution, and assertion sections with blank lines.
+
+Keep separate behaviors in separate test functions within the existing test file, and add comments only when the setup or intent is not clear from the code.
 
 Use an external test package named `<package>_test` for test files whenever possible, such as `package v1_test`. Use the package under test only when access to unexported implementation details is necessary.
 

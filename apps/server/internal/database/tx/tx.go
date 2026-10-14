@@ -27,7 +27,8 @@ func BeginFunc(
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	err = fn(tx)
+	if err != nil {
 		_ = tx.Rollback()
 		return err
 	}
