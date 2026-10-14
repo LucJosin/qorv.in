@@ -11,8 +11,8 @@ import (
 
 	"github.com/LucJosin/opid"
 	"github.com/google/go-cmp/cmp"
-	"github.com/lucjosin/qorv.in/internal/errs"
 	"github.com/lucjosin/qorv.in/internal/pagination"
+	"github.com/lucjosin/qorv.in/internal/validatorx"
 )
 
 func TestParse_ValidRequests(t *testing.T) {
@@ -138,11 +138,11 @@ func TestParse_InvalidQueryParameters(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err = pagination.Parse(query, filters, codec)
-			var validation *errs.ValidationError
+			var validation *validatorx.ValidationError
 			if !errors.As(err, &validation) {
 				t.Fatalf("error = %v, want a validation error", err)
 			}
-			got := validation.Field
+			got := validation.Fields[0].Field
 			want := test.field
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Fatalf("field mismatch (-want +got):\n%s", diff)
@@ -250,11 +250,11 @@ func TestParse_InvalidCursors(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err = pagination.Parse(query, filters, codec)
-			var validation *errs.ValidationError
+			var validation *validatorx.ValidationError
 			if !errors.As(err, &validation) {
 				t.Fatalf("error = %v, want a validation error", err)
 			}
-			got := validation.Field
+			got := validation.Fields[0].Field
 			want := test.field
 			if diff := cmp.Diff(want, got); diff != "" {
 				t.Fatalf("field mismatch (-want +got):\n%s", diff)

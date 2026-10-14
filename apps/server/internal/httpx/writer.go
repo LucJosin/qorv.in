@@ -34,7 +34,8 @@ func WriteJSON(ctx context.Context, w http.ResponseWriter, status int, body any)
 func write(ctx context.Context, w http.ResponseWriter, statusCode int, body any) {
 	w.Header().Set("Content-Type", JSONUTF8ContentType)
 	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(body); err != nil {
+	err := json.NewEncoder(w).Encode(body)
+	if err != nil {
 		slogx.FromCtx(ctx).Error("couldn't write error", "error", err, "status", statusCode)
 	}
 }

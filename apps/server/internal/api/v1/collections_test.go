@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
 	"github.com/lucjosin/qorv.in/internal/pagination"
+	"github.com/lucjosin/qorv.in/internal/validatorx"
 
 	v1 "github.com/lucjosin/qorv.in/internal/api/v1"
 )
@@ -64,24 +66,24 @@ func TestCollectionList_PublicIDs(t *testing.T) {
 			id:     entity.WorkspaceID,
 		},
 	}
-	for _, test := range tests {
+	for _, tt := range tests {
 		var publicID opid.ID
-		err := json.Unmarshal(data[test.field], &publicID)
+		err := json.Unmarshal(data[tt.field], &publicID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		codec, err := opid.NewCodec(test.prefix)
+		codec, err := opid.NewCodec(tt.prefix)
 		if err != nil {
 			t.Fatal(err)
 		}
 		id, err := codec.Decode(publicID)
 		if err != nil {
-			t.Fatalf("decoding %s: %v", test.field, err)
+			t.Fatalf("decoding %s: %v", tt.field, err)
 		}
 		got := id
-		want := test.id
+		want := tt.id
 		if diff := cmp.Diff(want, got); diff != "" {
-			t.Fatalf("%s mismatch (-want +got):\n%s", test.field, diff)
+			t.Fatalf("%s mismatch (-want +got):\n%s", tt.field, diff)
 		}
 	}
 }
@@ -112,12 +114,12 @@ func TestCollectionList_RejectsInvalidIDs(t *testing.T) {
 			workspaceID: uuid.NewV4(),
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			entities := []collection.Collection{
 				{
-					ID:          test.id,
-					WorkspaceID: test.workspaceID,
+					ID:          tt.id,
+					WorkspaceID: tt.workspaceID,
 				},
 			}
 			w := listCollections(t, entities)
@@ -249,8 +251,8 @@ func TestCollectionList_InvalidPagination(t *testing.T) {
 			message: "invalid query encoding",
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			service := CollectionService{
 				list: func(collection.Params) (pagination.Page[collection.Collection], error) {
 					t.Fatal("invalid pagination must not call the service")
@@ -258,13 +260,13 @@ func TestCollectionList_InvalidPagination(t *testing.T) {
 				},
 			}
 			router := collectionRouter(t, service)
-			response := getCollectionError(t, router, "/collections/"+test.query, http.StatusBadRequest)
-			got := response.Errors
+			response := getCollectionError(t, router, "/collections/"+tt.query, http.StatusBadRequest)
+			got := response.Details
 			want := []v1.FieldError{
 				{
-					Field:   test.field,
-					Message: test.message,
-					Key:     "invalid",
+					Field:   tt.field,
+					Message: fmt.Sprintf("Field %s %s", tt.field, tt.message),
+					Key:     "FIELD_INVALID",
 				},
 			}
 			if diff := cmp.Diff(want, got); diff != "" {
@@ -286,6 +288,151 @@ func TestCollectionList_InternalError(t *testing.T) {
 	want := "An internal server error occurred."
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("safe message mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCollectionList_ValidationErrors(t *testing.T) {
+	validator := validatorx.New()
+	type collectionValidationRequest struct {
+		Name  string `json:"name" validate:"required"`
+		Count int    `json:"count" validate:"min=1"`
+		Email string `json:"email" validate:"email"`
+	}
+	request := collectionValidationRequest{}
+	validationError := validator.Validate(request)
+
+	fieldValidation := &validatorx.ValidationError{
+		Fields: []validatorx.FieldError{
+			{
+				Field:   "workspace_id",
+				Tag:     "invalid",
+				Message: "invalid workspace",
+			},
+			{
+				Field:  "limit",
+				Tag:    "max",
+				Params: []string{"100"},
+			},
+		},
+	}
+	wrappedValidation := fmt.Errorf("listing collections: %w", fieldValidation)
+
+	tests := []struct {
+		name   string
+		err    error
+		status int
+		want   []v1.FieldError
+	}{
+		{
+			name:   "struct validation rules",
+			err:    validationError,
+			status: http.StatusBadRequest,
+			want: []v1.FieldError{
+				{
+					Field:   "name",
+					Key:     "FIELD_REQUIRED",
+					Message: "Field name is required",
+				},
+				{
+					Field:   "count",
+					Key:     "FIELD_MIN",
+					Message: "Field count must be at least 1",
+				},
+				{
+					Field:   "email",
+					Key:     "FIELD_INVALID",
+					Message: "Field email has an invalid value",
+				},
+			},
+		},
+		{
+			name:   "wrapped multiple fields",
+			err:    wrappedValidation,
+			status: http.StatusBadRequest,
+			want: []v1.FieldError{
+				{
+					Field:   "workspace_id",
+					Key:     "FIELD_INVALID",
+					Message: "Field workspace_id invalid workspace",
+				},
+				{
+					Field:   "limit",
+					Key:     "FIELD_MAX",
+					Message: "Field limit must be at most 100",
+				},
+			},
+		},
+		{
+			name:   "internal failure",
+			err:    errors.New("database failure"),
+			status: http.StatusInternalServerError,
+		},
+		{
+			name:   "empty validation error",
+			err:    &validatorx.ValidationError{},
+			status: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := CollectionService{
+				list: func(collection.Params) (pagination.Page[collection.Collection], error) {
+					return pagination.Page[collection.Collection]{}, tt.err
+				},
+			}
+
+			router := chi.NewRouter()
+			collectionCodec, err := opid.NewCodec("col")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			workspaceCodec, err := opid.NewCodec("ws")
+			if err != nil {
+				t.Fatal(err)
+			}
+			v1.NewCollectionHandler(router, service, collectionCodec, workspaceCodec)
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/collections/", nil))
+
+			want := tt.status
+			got := w.Code
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatalf("status mismatch (-want +got):\n%s", diff)
+			}
+
+			if tt.status == http.StatusInternalServerError {
+				var response v1.APIErrorResponse
+				err = json.Unmarshal(w.Body.Bytes(), &response)
+				if err != nil {
+					t.Fatal(err)
+				}
+				wantMessage := "An internal server error occurred."
+				gotMessage := response.Error.Message
+				if diff := cmp.Diff(wantMessage, gotMessage); diff != "" {
+					t.Fatalf("message mismatch (-want +got):\n%s", diff)
+				}
+				return
+			}
+
+			var response v1.APIErrorResponse
+			err = json.Unmarshal(w.Body.Bytes(), &response)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got = response.Error.StatusCode
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatalf("error status mismatch (-want +got):\n%s", diff)
+			}
+			wantFields := tt.want
+			gotFields := response.Error.Details
+			if diff := cmp.Diff(wantFields, gotFields); diff != "" {
+				t.Fatalf("fields mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 

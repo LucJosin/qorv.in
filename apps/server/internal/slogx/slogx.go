@@ -110,11 +110,12 @@ func New() (*Logger, error) {
 	case FormatJSON:
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	case FormatPretty:
-		handler = tint.NewTextHandler(os.Stdout, &tint.Options{
+		prettyOptions := &tint.Options{
 			Level:       parsedLevel,
 			TimeFormat:  time.DateTime,
 			ReplaceAttr: replaceAttr,
-		})
+		}
+		handler = tint.NewTextHandler(os.Stdout, prettyOptions)
 	default:
 		return nil, fmt.Errorf("invalid log format: %v", logFormat)
 	}
@@ -136,7 +137,8 @@ func WithContext(ctx context.Context, log *Logger) context.Context {
 
 // FromCtx retrieves the Logger from the context or returns default
 func FromCtx(ctx context.Context) *Logger {
-	if log, ok := ctx.Value(loggerKey).(*Logger); ok {
+	log, ok := ctx.Value(loggerKey).(*Logger)
+	if ok {
 		return log
 	}
 	return Default()

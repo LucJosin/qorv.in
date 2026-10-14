@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,7 +8,6 @@ import (
 	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
-	"github.com/lucjosin/qorv.in/internal/errs"
 	"github.com/lucjosin/qorv.in/internal/pagination"
 )
 
@@ -53,23 +51,13 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 	var params collection.Params
 	query, err := pagination.ParseQuery(r.URL.RawQuery, params, h.collectionCodec)
 	if err != nil {
-		if validation, ok := errors.AsType[*errs.ValidationError](err); ok {
-			writeError(w, r, http.StatusBadRequest, "Invalid pagination parameters.", []FieldError{
-				{
-					Field:   validation.Field,
-					Message: validation.Message,
-					Key:     "invalid",
-				},
-			})
-		} else {
-			internalError(w, r, err)
-		}
+		writeValidationError(w, r, err, "Invalid pagination parameters.")
 		return
 	}
 	params.Query = query
 	page, err := h.service.List(ctx, params)
 	if err != nil {
-		internalError(w, r, err)
+		writeValidationError(w, r, err, "Invalid collection parameters.")
 		return
 	}
 

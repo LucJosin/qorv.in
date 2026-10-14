@@ -1,12 +1,11 @@
 package workspace
 
 import (
-	"fmt"
 	"strings"
 	"time"
 	"uuid"
 
-	"github.com/lucjosin/qorv.in/internal/errs"
+	"github.com/lucjosin/qorv.in/internal/validatorx"
 )
 
 type Workspace struct {
@@ -27,10 +26,16 @@ func (w *Workspace) ValidateAndPrepare() error {
 }
 
 func (w *Workspace) Validate() error {
-	if strings.TrimSpace(w.Slug) == "" {
-		return fmt.Errorf("%w: workspace slug is required", errs.ErrInvalid)
+	var fields []validatorx.FieldError
+
+	slug := strings.TrimSpace(w.Slug)
+	if slug == "" {
+		field := validatorx.Field("slug", "is required")
+		field.Tag = "required"
+		fields = append(fields, field)
 	}
-	return nil
+
+	return validatorx.NewValidationError(fields...)
 }
 
 func (w *Workspace) Prepare() {

@@ -22,12 +22,14 @@ func BeginFunc(
 
 	defer func() {
 		rollbackErr := tx.Rollback()
-		if rollbackErr != nil && !errors.Is(err, sql.ErrConnDone) {
+		isConnDone := errors.Is(err, sql.ErrConnDone)
+		if rollbackErr != nil && !isConnDone {
 			err = rollbackErr
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	err = fn(tx)
+	if err != nil {
 		_ = tx.Rollback()
 		return err
 	}

@@ -27,7 +27,8 @@ const (
 
 // ParseError converts a MySQL error into a more specific application error based on the error code.
 func ParseError(err error, fallback string) error {
-	if mysqlErr, ok := errors.AsType[*mysql.MySQLError](err); ok {
+	mysqlErr, ok := errors.AsType[*mysql.MySQLError](err)
+	if ok {
 		switch mysqlErr.Number {
 		case UniqueViolation:
 			return fmt.Errorf("%w: record already exists", errs.ErrConflict)
