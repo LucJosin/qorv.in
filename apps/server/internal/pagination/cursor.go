@@ -37,16 +37,19 @@ func Encode[F any](position Cursor, filters F, codec *opid.Codec) (string, error
 	if err != nil {
 		return "", err
 	}
+
 	id, err := codec.Encode(position.ID)
 	if err != nil {
 		return "", fmt.Errorf("encoding cursor ID: %w", err)
 	}
+
 	value := cursorPayload[F]{
 		Version:   1,
 		Filters:   filters,
 		CreatedAt: position.CreatedAt.UTC(),
 		ID:        id,
 	}
+
 	data, err := json.Marshal(value)
 	if err != nil {
 		return "", err
@@ -84,13 +87,18 @@ func decode[F any](value string, filters F, codec *opid.Codec) (Cursor, error) {
 	if err != nil {
 		return Cursor{}, err
 	}
-	if c.Version != 1 || !bytes.Equal(actualFilters, expectedFilters) {
+	filtersMatch := bytes.Equal(actualFilters, expectedFilters)
+	if c.Version != 1 || !filtersMatch {
 		return Cursor{}, errors.New("cursor version or filters mismatch")
 	}
-
 	id, err := codec.Decode(c.ID)
 	if err != nil {
 		return Cursor{}, err
 	}
-	return Cursor{CreatedAt: c.CreatedAt, ID: id}, nil
+
+	position := Cursor{
+		CreatedAt: c.CreatedAt,
+		ID:        id,
+	}
+	return position, nil
 }

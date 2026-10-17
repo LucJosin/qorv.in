@@ -3,12 +3,15 @@ package v1
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"time"
 
 	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
 	"github.com/lucjosin/qorv.in/internal/pagination"
+	"github.com/lucjosin/qorv.in/internal/validatorx"
 )
 
 type CollectionResponse struct {
@@ -48,13 +51,12 @@ func NewCollectionHandler(r chi.Router, service collection.Service, collectionCo
 func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var params collection.Params
-	query, err := pagination.ParseQuery(r.URL.RawQuery, params, h.collectionCodec)
+	params, err := h.parseQuery(r.URL.RawQuery)
 	if err != nil {
-		writeValidationError(w, r, err, "Invalid pagination parameters.")
+		writeValidationError(w, r, err, "Invalid query parameters.")
 		return
 	}
-	params.Query = query
+
 	page, err := h.service.List(ctx, params)
 	if err != nil {
 		writeValidationError(w, r, err, "Invalid collection parameters.")
@@ -71,7 +73,7 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 		response = append(response, entity)
 	}
 
-	metadata, err := pagination.NewMetadata(page, query, params, h.collectionCodec, collectionCursor)
+	metadata, err := pagination.NewMetadata(page, params.Query, params, h.collectionCodec, collectionCursor)
 	if err != nil {
 		internalError(w, r, err)
 		return
@@ -112,4 +114,52 @@ func collectionCursor(entity collection.Collection) pagination.Cursor {
 		CreatedAt: entity.CreatedAt,
 		ID:        entity.ID,
 	}
+}
+
+// parseQuery validates the collection endpoint's query and binds pagination to its filters.
+func (h *CollectionHandler) parseQuery(rawQuery string) (collection.Params, error) {
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return collection.Params{}, validatorx.NewValidationError(validatorx.Field("query", "invalid query encoding"))
+	}
+	params, err := h.parseFilters(values)
+	if err != nil {
+		return collection.Params{}, err
+	}
+	params.Query, err = pagination.Parse(values, params, h.collectionCodec)
+	if err != nil {
+		return collection.Params{}, err
+	}
+	return params, nil
+}
+
+// parseFilters validates endpoint fields and decodes collection filters.
+func (h *CollectionHandler) parseFilters(values url.Values) (collection.Params, error) {
+	params := collection.Params{}
+
+	fields := make([]string, 0, len(values))
+	for field := range values {
+		fields = append(fields, field)
+	}
+	slices.Sort(fields)
+	for _, field := range fields {
+		switch field {
+		case "limit", "cursor":
+			// Pagination validates these values after filters are decoded.
+		case "workspace_id":
+			workspaceIDs := values[field]
+			if len(workspaceIDs) != 1 || workspaceIDs[0] == "" {
+				return collection.Params{}, validatorx.NewValidationError(validatorx.Field(field, "must have exactly one non-empty value"))
+			}
+			id, err := h.workspaceCodec.DecodeString(workspaceIDs[0])
+			if err != nil {
+				return collection.Params{}, validatorx.NewValidationError(validatorx.Field(field, "must be a valid workspace ID"))
+			}
+			params.WorkspaceID = id
+		default:
+			return collection.Params{}, validatorx.NewValidationError(validatorx.Field(field, "unsupported query parameter"))
+		}
+	}
+
+	return params, nil
 }

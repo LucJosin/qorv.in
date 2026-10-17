@@ -46,7 +46,8 @@ func TestCollectionList_PublicIDs(t *testing.T) {
 		t.Fatalf("collection count mismatch (-want +got):\n%s", diff)
 	}
 	data := response.Data[0]
-	if _, ok := data["public_id"]; ok {
+	_, ok := data["public_id"]
+	if ok {
 		t.Fatal("response contains obsolete public_id field")
 	}
 
@@ -134,12 +135,10 @@ func TestCollectionList_RejectsInvalidIDs(t *testing.T) {
 
 func TestCollectionList_Empty(t *testing.T) {
 	w := listCollections(t, nil)
-	{
-		got := w.Code
-		want := http.StatusOK
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Fatalf("status mismatch (-want +got):\n%s", diff)
-		}
+	wantStatus := http.StatusOK
+	gotStatus := w.Code
+	if diff := cmp.Diff(wantStatus, gotStatus); diff != "" {
+		t.Fatalf("status mismatch (-want +got):\n%s", diff)
 	}
 	var response v1.APIResponse[[]v1.CollectionResponse]
 	err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -288,6 +287,142 @@ func TestCollectionList_InternalError(t *testing.T) {
 	want := "An internal server error occurred."
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("safe message mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestCollectionList_WorkspaceFilter(t *testing.T) {
+	entities := paginationCollections()
+	workspaceCodec, err := opid.NewCodec("ws")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspaceID, err := workspaceCodec.Encode(entities[0].WorkspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var params collection.Params
+	service := CollectionService{
+		list: func(query collection.Params) (pagination.Page[collection.Collection], error) {
+			params = query
+			return pagination.NewPage(entities, query.Limit), nil
+		},
+	}
+	router := collectionRouter(t, service)
+	path := "/collections/?limit=2&workspace_id=" + url.QueryEscape(workspaceID.String())
+	response := getCollectionPage(t, router, path)
+	want := collection.Params{
+		WorkspaceID: entities[0].WorkspaceID,
+		Query: pagination.Query{
+			Limit: 2,
+		},
+	}
+	got := params
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("filters mismatch (-want +got):\n%s", diff)
+	}
+	if response.Pagination.NextCursor == nil {
+		t.Fatal("missing continuation cursor")
+	}
+	getCollectionPage(t, router, path+"&cursor="+url.QueryEscape(*response.Pagination.NextCursor))
+	want.After = &pagination.Cursor{
+		CreatedAt: entities[1].CreatedAt,
+		ID:        entities[1].ID,
+	}
+	got = params
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("continuation mismatch (-want +got):\n%s", diff)
+	}
+	otherID, err := workspaceCodec.Encode(uuid.NewV7())
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.list = func(collection.Params) (pagination.Page[collection.Collection], error) {
+		t.Fatal("mismatched filters must not call the service")
+		return pagination.Page[collection.Collection]{}, nil
+	}
+	router = collectionRouter(t, service)
+	getCollectionError(t, router, "/collections/?workspace_id="+url.QueryEscape(otherID.String())+"&cursor="+url.QueryEscape(*response.Pagination.NextCursor), http.StatusBadRequest)
+}
+
+func TestCollectionList_InvalidQueryParameters(t *testing.T) {
+	codec, err := opid.NewCodec("col")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongID, err := codec.Encode(uuid.NewV7())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name  string
+		query string
+		field string
+	}{
+		{
+			name:  "malformed workspace",
+			query: "workspace_id=invalid",
+			field: "workspace_id",
+		},
+		{
+			name:  "wrong workspace prefix",
+			query: "workspace_id=" + url.QueryEscape(wrongID.String()),
+			field: "workspace_id",
+		},
+		{
+			name:  "empty workspace",
+			query: "workspace_id=",
+			field: "workspace_id",
+		},
+		{
+			name:  "duplicate workspace",
+			query: "workspace_id=a&workspace_id=b",
+			field: "workspace_id",
+		},
+		{
+			name:  "empty limit",
+			query: "limit=",
+			field: "limit",
+		},
+		{
+			name:  "duplicate limit",
+			query: "limit=1&limit=2",
+			field: "limit",
+		},
+		{
+			name:  "empty cursor",
+			query: "cursor=",
+			field: "cursor",
+		},
+		{
+			name:  "duplicate valid cursor",
+			query: "cursor=" + url.QueryEscape(collectionCursor(t, paginationCollections()[0])) + "&cursor=bad",
+			field: "cursor",
+		},
+		{
+			name:  "unsupported offset",
+			query: "offset=10",
+			field: "offset",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := CollectionService{
+				list: func(collection.Params) (pagination.Page[collection.Collection], error) {
+					t.Fatal("invalid query must not call the service")
+					return pagination.Page[collection.Collection]{}, nil
+				},
+			}
+			response := getCollectionError(t, collectionRouter(t, service), "/collections/?"+tt.query, http.StatusBadRequest)
+			fields := make([]string, 0, len(response.Details))
+			for _, field := range response.Details {
+				fields = append(fields, field.Field)
+			}
+			want := []string{tt.field}
+			got := fields
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatalf("fields mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -516,12 +651,10 @@ func getCollectionError(t *testing.T, router http.Handler, path string, status i
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("error status mismatch (-want +got):\n%s", diff)
 	}
-	{
-		got := response.Error.Path
-		want := "/collections/"
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Fatalf("path mismatch (-want +got):\n%s", diff)
-		}
+	wantPath := "/collections/"
+	gotPath := response.Error.Path
+	if diff := cmp.Diff(wantPath, gotPath); diff != "" {
+		t.Fatalf("path mismatch (-want +got):\n%s", diff)
 	}
 	_, err = time.Parse(time.RFC3339Nano, response.Error.Timestamp)
 	if err != nil {

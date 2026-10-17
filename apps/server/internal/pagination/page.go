@@ -14,5 +14,9 @@ func NewPage[T any](items []T, limit int) Page[T] {
 	if hasMore {
 		items = items[:limit]
 	}
-	return Page[T]{Items: items, HasMore: hasMore}
+	page := Page[T]{
+		Items:   items,
+		HasMore: hasMore,
+	}
+	return page
 }
