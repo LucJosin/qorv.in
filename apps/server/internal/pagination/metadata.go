@@ -6,6 +6,7 @@ type Metadata struct {
 	Limit      int     `json:"limit"`
 	HasMore    bool    `json:"has_more"`
 	NextCursor *string `json:"next_cursor"`
+	Count      int     `json:"count"`
 }
 
 // NewMetadata encodes the last item's cursor when the page has more results.
@@ -13,6 +14,7 @@ func NewMetadata[T, F any](page Page[T], query Query, filters F, codec *opid.Cod
 	metadata := Metadata{
 		Limit:   query.Limit,
 		HasMore: page.HasMore,
+		Count:   len(page.Items),
 	}
 	if !page.HasMore || len(page.Items) == 0 {
 		return metadata, nil

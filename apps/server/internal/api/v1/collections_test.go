@@ -177,6 +177,7 @@ func TestCollectionList_PaginationFirstPage(t *testing.T) {
 			Limit:      2,
 			HasMore:    true,
 			NextCursor: &nextCursor,
+			Count:      2,
 		},
 		Params: collection.Params{
 			Query: pagination.Query{
@@ -211,6 +212,7 @@ func TestCollectionList_PaginationNextPage(t *testing.T) {
 		IDs: []uuid.UUID{entities[2].ID},
 		Pagination: pagination.Metadata{
 			Limit: 2,
+			Count: 1,
 		},
 		Params: collection.Params{
 			Query: pagination.Query{
