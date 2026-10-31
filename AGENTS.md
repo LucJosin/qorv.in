@@ -21,7 +21,11 @@ Avoid using `reflect`. Always ask for approval before introducing reflection, in
 
 Separate function calls and assignments from validation conditions: assign the result to a named variable before checking it, rather than using an initializer in the `if` statement or calling validation and error-classification functions directly in the condition. Keep conditions readable and avoid combining result extraction with multiple checks. Inline `cmp.Diff(want, got)` checks in tests remain preferred.
 
+Keep error checks immediately after the call that produced the error, without a blank line or unrelated statements between them. When classifying or extracting an error with `errors.Is` or `errors.AsType`, keep that assignment and its check together with the producing call. In tests, place section-separating blank lines after error checks rather than between calls and their checks.
+
 Name test functions using `Test<Function>_<Description>`, with an underscore separating the function or behavior under test from the scenario description, such as `TestCollectionList_PublicIDs`.
+
+Name test files `X_test.go`, matching the source file they test, such as `collections_test.go`. Never use `X_X_test.go` names such as `collections_pagination_test.go`; keep those tests in `collections_test.go`.
 
 Use `github.com/google/go-cmp/cmp` for expected-versus-actual value comparisons in tests. Prefer `cmp.Diff(want, got)` and report differences with `(-want +got)`. Keep ordinary error checks and presence checks where a value comparison is not appropriate. Preserve the distinction between nil and empty slices unless the behavior under test treats them as equivalent.
 
