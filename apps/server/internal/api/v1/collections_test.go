@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -325,6 +326,25 @@ func TestCollectionList_WorkspaceFilter(t *testing.T) {
 	if response.Pagination.NextCursor == nil {
 		t.Fatal("missing continuation cursor")
 	}
+	cursorData, err := base64.RawURLEncoding.DecodeString(*response.Pagination.NextCursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Filters map[string]string `json:"filters"`
+	}
+	err = json.Unmarshal(cursorData, &payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFilters := map[string]string{
+		"workspace_id": workspaceID.String(),
+	}
+	gotFilters := payload.Filters
+	if diff := cmp.Diff(wantFilters, gotFilters); diff != "" {
+		t.Fatalf("cursor filters mismatch (-want +got):\n%s", diff)
+	}
+
 	getCollectionPage(t, router, path+"&cursor="+url.QueryEscape(*response.Pagination.NextCursor))
 	want.After = &pagination.Cursor{
 		CreatedAt: entities[1].CreatedAt,

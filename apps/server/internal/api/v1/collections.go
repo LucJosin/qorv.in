@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"slices"
 	"time"
+	"uuid"
 
 	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
@@ -73,7 +74,12 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 		response = append(response, entity)
 	}
 
-	metadata, err := pagination.NewMetadata(page, params.Query, params, h.collectionCodec, collectionCursor)
+	filters, err := h.cursorFilters(params)
+	if err != nil {
+		internalError(w, r, err)
+		return
+	}
+	metadata, err := pagination.NewMetadata(page, params.Query, filters, h.collectionCodec, collectionCursor)
 	if err != nil {
 		internalError(w, r, err)
 		return
@@ -109,13 +115,6 @@ func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionRespo
 	return res, nil
 }
 
-func collectionCursor(entity collection.Collection) pagination.Cursor {
-	return pagination.Cursor{
-		CreatedAt: entity.CreatedAt,
-		ID:        entity.ID,
-	}
-}
-
 // parseQuery validates the collection endpoint's query and binds pagination to its filters.
 func (h *CollectionHandler) parseQuery(rawQuery string) (collection.Params, error) {
 	values, err := url.ParseQuery(rawQuery)
@@ -126,7 +125,11 @@ func (h *CollectionHandler) parseQuery(rawQuery string) (collection.Params, erro
 	if err != nil {
 		return collection.Params{}, err
 	}
-	params.Query, err = pagination.Parse(values, params, h.collectionCodec)
+	filters, err := h.cursorFilters(params)
+	if err != nil {
+		return collection.Params{}, err
+	}
+	params.Query, err = pagination.Parse(values, filters, h.collectionCodec)
 	if err != nil {
 		return collection.Params{}, err
 	}
@@ -162,4 +165,29 @@ func (h *CollectionHandler) parseFilters(values url.Values) (collection.Params, 
 	}
 
 	return params, nil
+}
+
+type collectionCursorFilters struct {
+	WorkspaceID opid.ID `json:"workspace_id,omitzero"`
+}
+
+func (h *CollectionHandler) cursorFilters(params collection.Params) (collectionCursorFilters, error) {
+	filters := collectionCursorFilters{}
+	if params.WorkspaceID == uuid.Nil() {
+		return filters, nil
+	}
+
+	id, err := h.workspaceCodec.Encode(params.WorkspaceID)
+	if err != nil {
+		return collectionCursorFilters{}, fmt.Errorf("encoding cursor workspace ID: %w", err)
+	}
+	filters.WorkspaceID = id
+	return filters, nil
+}
+
+func collectionCursor(entity collection.Collection) pagination.Cursor {
+	return pagination.Cursor{
+		CreatedAt: entity.CreatedAt,
+		ID:        entity.ID,
+	}
 }
