@@ -8,6 +8,7 @@ import (
 	"github.com/LucJosin/opid"
 	"github.com/go-chi/chi/v5"
 	"github.com/lucjosin/qorv.in/internal/domain/collection"
+	"github.com/lucjosin/qorv.in/internal/pagination"
 )
 
 type CollectionResponse struct {
@@ -47,28 +48,65 @@ func NewCollectionHandler(r chi.Router, service collection.Service, collectionCo
 func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	entities, err := h.service.List(ctx)
+	query, err := pagination.NewQuery(r.URL.Query())
 	if err != nil {
-		// TODO: remove it
-		writeError(w, r, http.StatusBadRequest, "Invalid collection parameters.", err)
+		writeError(w, r, http.StatusBadRequest, "Invalid collection parameters", err)
 		return
 	}
 
-	response := make([]CollectionResponse, 0, len(entities))
+	params := collection.ListParams{
+		Limit:   query.Limit,
+		After:   query.Cursor,
+		Sort:    query.Sort,
+		Filters: collection.ListFilters{},
+	}
+	err = params.Validate()
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, "Invalid collection parameters", err)
+		return
+	}
+
+	entities, err := h.service.List(ctx, params)
+	if err != nil {
+		internalError(ctx, w, err)
+		return
+	}
+
+	page := PaginationResponse{
+		PerPage: query.Limit,
+	}
+	hasNext := len(entities) > query.Limit
+	if hasNext {
+		entities = entities[:query.Limit]
+		last := entities[len(entities)-1]
+		cursor := pagination.Cursor{
+			Version:   1,
+			CreatedAt: last.CreatedAt,
+			ID:        last.ID,
+		}
+		nextCursor, err := pagination.EncodeCursor(cursor)
+		if err != nil {
+			internalError(ctx, w, err)
+			return
+		}
+		page.NextCursor = nextCursor
+	}
+
+	items := make([]CollectionResponse, 0, len(entities))
 	for _, entity := range entities {
 		entity, err := h.toResponse(entity)
 		if err != nil {
 			internalError(ctx, w, err)
 			return
 		}
-		response = append(response, entity)
+		items = append(items, entity)
 	}
 
-	// TODO: add paginated response
-	payload := APIResponse[[]CollectionResponse]{
-		Data: response,
+	response := APIResponse[[]CollectionResponse]{
+		Data:       items,
+		Pagination: &page,
 	}
-	writeResponse(ctx, w, http.StatusOK, payload)
+	writeResponse(ctx, w, http.StatusOK, response)
 }
 
 func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionResponse, error) {
