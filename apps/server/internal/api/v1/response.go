@@ -15,8 +15,15 @@ import (
 // APIResponse represents a standardized API response format,
 // containing a data payload of any type and additional metadata.
 type APIResponse[T any] struct {
-	Data  T              `json:"data,omitzero"`
-	Error *ErrorResponse `json:"error,omitzero"`
+	Data       T                   `json:"data,omitzero"`
+	Pagination *PaginationResponse `json:"pagination,omitzero"`
+}
+
+// PaginationResponse contains continuation metadata for a list response.
+type PaginationResponse struct {
+	NextCursor string `json:"next_cursor,omitzero"`
+	PrevCursor string `json:"prev_cursor,omitzero"`
+	PerPage    int    `json:"per_page"`
 }
 
 // APIErrorResponse wraps an API error without a success payload.
@@ -31,21 +38,39 @@ func internalError(ctx context.Context, w http.ResponseWriter, err error) {
 	httpx.WriteErrorf(ctx, w, err, http.StatusInternalServerError, nil)
 }
 
-// writeValidationError writes field validation failures as bad requests.
-//
-// Unexpected errors or validation errors without fields fall back to internalError.
-func writeValidationError(w http.ResponseWriter, r *http.Request, err error, message string) {
-	validation, ok := errors.AsType[*validatorx.ValidationError](err)
-	if !ok || validation == nil || len(validation.Fields) == 0 {
-		internalError(r.Context(), w, err)
-		return
+// writeError sends a standard API error with the supplied status and message.
+// Pass nil for err to omit field details. Unexpected errors fall back to internalError.
+func writeError(w http.ResponseWriter, r *http.Request, status int, message string, err error) {
+	var fields []FieldError
+	if err != nil {
+		validation, ok := errors.AsType[*validatorx.ValidationError](err)
+		if !ok || validation == nil || len(validation.Fields) == 0 {
+			internalError(r.Context(), w, err)
+			return
+		}
+		fields = validationFields(validation.Fields)
 	}
 
-	fields := make([]FieldError, 0, len(validation.Fields))
-	for _, field := range validation.Fields {
+	response := APIErrorResponse{
+		Error: ErrorResponse{
+			StatusCode: status,
+			Status:     http.StatusText(status),
+			Message:    message,
+			Details:    fields,
+			Path:       r.URL.Path,
+			Timestamp:  time.Now().UTC().Format(time.RFC3339Nano),
+		},
+	}
+	writeResponse(r.Context(), w, status, response)
+}
+
+func validationFields(failures []validatorx.FieldError) []FieldError {
+	fields := make([]FieldError, 0, len(failures))
+	for _, field := range failures {
 		key := FieldInvalid
 		detail := field.Message
 		param := strings.Join(field.Params, ",")
+
 		switch field.Tag {
 		case "required":
 			key = FieldRequired
@@ -75,26 +100,10 @@ func writeValidationError(w http.ResponseWriter, r *http.Request, err error, mes
 		}
 		fields = append(fields, detailError)
 	}
-
-	response := APIErrorResponse{
-		Error: ErrorResponse{
-			StatusCode: http.StatusBadRequest,
-			Status:     http.StatusText(http.StatusBadRequest),
-			Message:    message,
-			Details:    fields,
-			Path:       r.URL.Path,
-			Timestamp:  time.Now().UTC().Format(time.RFC3339Nano),
-		},
-	}
-	httpx.WriteJSON(r.Context(), w, http.StatusBadRequest, response)
+	return fields
 }
 
-// writeResponse sends a JSON response with the specified status code and body.
-//
-// It wraps the body in an APIResponse struct and includes pagination metadata if provided.
-func writeResponse[T any](ctx context.Context, w http.ResponseWriter, status int, body T) {
-	response := APIResponse[T]{
-		Data: body,
-	}
+// writeResponse sends a response as JSON with the specified status code.
+func writeResponse[T any](ctx context.Context, w http.ResponseWriter, status int, response T) {
 	httpx.WriteJSON(ctx, w, status, response)
 }

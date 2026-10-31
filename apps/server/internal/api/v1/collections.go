@@ -50,7 +50,7 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 	entities, err := h.service.List(ctx)
 	if err != nil {
 		// TODO: remove it
-		writeValidationError(w, r, err, "Invalid collection parameters.")
+		writeError(w, r, http.StatusBadRequest, "Invalid collection parameters.", err)
 		return
 	}
 
@@ -65,7 +65,10 @@ func (h *CollectionHandler) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: add paginated response
-	writeResponse(ctx, w, http.StatusOK, response)
+	payload := APIResponse[[]CollectionResponse]{
+		Data: response,
+	}
+	writeResponse(ctx, w, http.StatusOK, payload)
 }
 
 func (h *CollectionHandler) toResponse(e collection.Collection) (CollectionResponse, error) {
