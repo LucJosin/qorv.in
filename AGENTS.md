@@ -17,6 +17,8 @@ Split packages into focused files by responsibility, such as request validation,
 
 Prefer local scope for types and variables. Start with declarations inside the function that uses them, and move them to package scope only when they need to be shared across functions or form part of the package API. Types used by a single test should remain local. Assign struct literals to variables before passing them to functions. For table-driven tests, keep the test-case declaration in the named `tests` variable as described below.
 
+When a function uses a logger, initialize `log` within its first few lines so it is easy to reuse throughout the function.
+
 Avoid using `reflect`. Always ask for approval before introducing reflection, including new uses in code that already imports `reflect`.
 
 Separate function calls and assignments from validation conditions: assign the result to a named variable before checking it, rather than using an initializer in the `if` statement or calling validation and error-classification functions directly in the condition. Keep conditions readable and avoid combining result extraction with multiple checks. Inline `cmp.Diff(want, got)` checks in tests remain preferred.
