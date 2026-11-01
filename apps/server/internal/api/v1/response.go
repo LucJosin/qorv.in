@@ -39,6 +39,7 @@ func internalError(ctx context.Context, w http.ResponseWriter, err error) {
 }
 
 // writeError sends a standard API error with the supplied status and message.
+//
 // Pass nil for err to omit field details. Unexpected errors fall back to internalError.
 func writeError(w http.ResponseWriter, r *http.Request, status int, message string, err error) {
 	var fields []FieldError

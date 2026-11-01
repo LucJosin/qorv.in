@@ -1,8 +1,6 @@
 package collection
 
-import (
-	"context"
-)
+import "context"
 
 type Service interface {
 	List(ctx context.Context, query ListParams) ([]Collection, error)
@@ -18,6 +16,6 @@ func NewService(repo Repository) Service {
 	}
 }
 
-func (s *service) List(ctx context.Context, query ListParams) ([]Collection, error) {
-	return s.repo.List(ctx)
+func (s *service) List(ctx context.Context, params ListParams) ([]Collection, error) {
+	return s.repo.List(ctx, params)
 }
