@@ -20,6 +20,7 @@ import (
 	"github.com/lucjosin/qorv.in/internal/domain/user"
 	"github.com/lucjosin/qorv.in/internal/domain/workspace"
 	"github.com/lucjosin/qorv.in/internal/errs"
+	"github.com/lucjosin/qorv.in/internal/middlewarex"
 	"github.com/lucjosin/qorv.in/internal/slogx"
 
 	apiv1 "github.com/lucjosin/qorv.in/internal/api/v1"
@@ -131,6 +132,9 @@ func main() {
 	}
 
 	r := chi.NewRouter()
+	r.Use(middlewarex.RequestID)
+	r.Use(middlewarex.TraceID)
+	r.Use(middlewarex.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(15 * time.Second))
 	r.Use(middleware.Compress(5))
