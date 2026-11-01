@@ -13,6 +13,7 @@ type Sort struct {
 }
 
 // parseSort accepts a single field with an optional :asc or :desc suffix.
+// Sort directions are case-insensitive and normalized to lowercase.
 // Allowed fields are validated by the domain using the query.
 func parseSort(values []string) (Sort, error) {
 	if len(values) > 1 {
@@ -30,6 +31,7 @@ func parseSort(values []string) (Sort, error) {
 	if !hasOrder {
 		order = "asc"
 	}
+	order = strings.ToLower(order)
 
 	invalidField := strings.ContainsAny(field, ":,;+-") || strings.ContainsFunc(field, unicode.IsSpace)
 	if field == "" || invalidField || (order != "asc" && order != "desc") {

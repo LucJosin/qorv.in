@@ -22,7 +22,8 @@ func (r Query) Validate() error {
 	}
 	if r.Cursor != nil {
 		zeroTime := r.Cursor.CreatedAt.IsZero()
-		if zeroTime || !isUUIDv7(r.Cursor.ID) {
+		validID := isUUIDv7(r.Cursor.ID)
+		if zeroTime || !validID || r.Cursor.Version != 1 {
 			errs = append(errs, validatorx.Field("cursor", "invalid cursor position"))
 		}
 	}

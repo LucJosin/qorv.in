@@ -50,6 +50,38 @@ func TestNewQuery_Sort(t *testing.T) {
 				Order: "desc",
 			},
 		},
+		{
+			name: "uppercase ascending",
+			sort: []string{"created_at:ASC"},
+			want: pagination.Sort{
+				Field: "created_at",
+				Order: "asc",
+			},
+		},
+		{
+			name: "uppercase descending",
+			sort: []string{"created_at:DESC"},
+			want: pagination.Sort{
+				Field: "created_at",
+				Order: "desc",
+			},
+		},
+		{
+			name: "mixed case ascending",
+			sort: []string{"created_at:Asc"},
+			want: pagination.Sort{
+				Field: "created_at",
+				Order: "asc",
+			},
+		},
+		{
+			name: "mixed case descending",
+			sort: []string{"created_at:dEsC"},
+			want: pagination.Sort{
+				Field: "created_at",
+				Order: "desc",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -96,10 +128,6 @@ func TestNewQuery_InvalidSort(t *testing.T) {
 		{
 			name: "unsupported order",
 			sort: []string{"name:descending"},
-		},
-		{
-			name: "uppercase order",
-			sort: []string{"name:DESC"},
 		},
 		{
 			name: "extra separator",
